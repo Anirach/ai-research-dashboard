@@ -59,19 +59,14 @@ export async function fetchArxivPapers(options: {
     searchQuery = `${searchQuery}+AND+(${keywordQuery})`;
   }
 
-  const params = new URLSearchParams({
-    search_query: searchQuery,
-    start: start.toString(),
-    max_results: maxResults.toString(),
-    sortBy,
-    sortOrder,
-  });
+  // Build URL manually to preserve + characters (arXiv requires literal +, not %2B)
+  const url = `${ARXIV_API_URL}?search_query=${searchQuery}&start=${start}&max_results=${maxResults}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
   try {
-    const response = await fetch(`${ARXIV_API_URL}?${params}`, {
+    const response = await fetch(url, {
       signal: controller.signal,
     });
 
@@ -143,19 +138,15 @@ export async function searchArxivPapers(
   query: string,
   maxResults: number = 50
 ): Promise<ArxivPaper[]> {
-  const params = new URLSearchParams({
-    search_query: `all:${encodeURIComponent(query)}`,
-    start: "0",
-    max_results: maxResults.toString(),
-    sortBy: "relevance",
-    sortOrder: "descending",
-  });
+  // Build URL manually to avoid URLSearchParams encoding issues
+  const encodedQuery = encodeURIComponent(query);
+  const url = `${ARXIV_API_URL}?search_query=all:${encodedQuery}&start=0&max_results=${maxResults}&sortBy=relevance&sortOrder=descending`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
   try {
-    const response = await fetch(`${ARXIV_API_URL}?${params}`, {
+    const response = await fetch(url, {
       signal: controller.signal,
     });
 
@@ -198,15 +189,13 @@ export async function searchArxivPapers(
 export async function fetchPaperByArxivId(arxivId: string): Promise<ArxivPaper | null> {
   const cleanId = arxivId.replace("arXiv:", "").replace("arxiv:", "");
 
-  const params = new URLSearchParams({
-    id_list: cleanId,
-  });
+  const url = `${ARXIV_API_URL}?id_list=${cleanId}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
   try {
-    const response = await fetch(`${ARXIV_API_URL}?${params}`, {
+    const response = await fetch(url, {
       signal: controller.signal,
     });
 
