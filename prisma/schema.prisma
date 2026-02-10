@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  papers        Paper[]
+  tags          Tag[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum ReadingStatus {
+  TO_READ
+  READING
+  DONE
+}
+
+model Paper {
+  id          String        @id @default(cuid())
+  arxivId     String
+  title       String
+  authors     String[]
+  abstract    String        @db.Text
+  url         String
+  pdfUrl      String?
+  publishedAt DateTime?
+  categories  String[]
+  status      ReadingStatus @default(TO_READ)
+  notes       String?       @db.Text
+  rating      Int?
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        PaperTag[]
+  citations   Citation[]    @relation("CitingPaper")
+  citedBy     Citation[]    @relation("CitedPaper")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([arxivId, userId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Tag {
+  id        String     @id @default(cuid())
+  name      String
+  color     String     @default("#6366f1")
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  papers    PaperTag[]
+  createdAt DateTime   @default(now())
+
+  @@unique([name, userId])
+  @@index([userId])
+}
+
+model PaperTag {
+  id      String @id @default(cuid())
+  paperId String
+  tagId   String
+  paper   Paper  @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([paperId, tagId])
+}
+
+model Citation {
+  id            String   @id @default(cuid())
+  citingPaperId String
+  citedPaperId  String
+  citingPaper   Paper    @relation("CitingPaper", fields: [citingPaperId], references: [id], onDelete: Cascade)
+  citedPaper    Paper    @relation("CitedPaper", fields: [citedPaperId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([citingPaperId, citedPaperId])
+}
