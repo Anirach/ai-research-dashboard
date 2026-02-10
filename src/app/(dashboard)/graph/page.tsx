@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
+import { RefreshCw, ExternalLink, Maximize2, Minimize2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 interface Node {
@@ -27,6 +27,7 @@ export default function GraphPage() {
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const fetchNetwork = async () => {
     setLoading(true);
@@ -50,6 +51,62 @@ export default function GraphPage() {
 
   const handleNodeClick = (node: Node) => {
     setSelectedNode(node);
+  };
+
+  const addToLibrary = async (arxivId: string) => {
+    if (!arxivId) {
+      toast.error("No arXiv ID available");
+      return;
+    }
+
+    setAdding(true);
+    try {
+      // First, fetch full paper details from arXiv
+      const arxivRes = await fetch(`/api/arxiv?action=get&arxivId=${arxivId}`);
+      if (!arxivRes.ok) {
+        throw new Error("Failed to fetch paper details");
+      }
+      const { paper } = await arxivRes.json();
+
+      if (!paper) {
+        toast.error("Paper not found on arXiv");
+        return;
+      }
+
+      // Add to library
+      const addRes = await fetch("/api/papers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          arxivId: paper.arxivId,
+          title: paper.title,
+          authors: paper.authors,
+          abstract: paper.abstract,
+          url: paper.url,
+          pdfUrl: paper.pdfUrl,
+          publishedAt: paper.publishedAt,
+          categories: paper.categories,
+        }),
+      });
+
+      if (addRes.status === 409) {
+        toast.info("Paper already in your library");
+        return;
+      }
+
+      if (!addRes.ok) {
+        const error = await addRes.json();
+        throw new Error(error.details || "Failed to add paper");
+      }
+
+      toast.success("Paper added to your library");
+      await fetchNetwork(); // Refresh to show updated colors
+    } catch (error) {
+      console.error("Failed to add paper:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to add paper");
+    } finally {
+      setAdding(false);
+    }
   };
 
   if (loading) {
@@ -156,16 +213,28 @@ export default function GraphPage() {
                 </p>
               )}
               {selectedNode.arxivId && (
-                <Button variant="outline" size="sm" className="w-full" asChild>
-                  <a
-                    href={`https://arxiv.org/abs/${selectedNode.arxivId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => addToLibrary(selectedNode.arxivId!)}
+                    disabled={adding}
                   >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View on arXiv
-                  </a>
-                </Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {adding ? "Adding..." : "Add to Library"}
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <a
+                      href={`https://arxiv.org/abs/${selectedNode.arxivId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      View on arXiv
+                    </a>
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
