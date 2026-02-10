@@ -83,6 +83,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createPaperSchema.parse(body);
 
+    // Ensure user exists in database (since we use JWT-only auth)
+    await prisma.user.upsert({
+      where: { id: userId! },
+      update: {},
+      create: { id: userId! },
+    });
+
     const existingPaper = await prisma.paper.findUnique({
       where: {
         arxivId_userId: {
@@ -127,6 +134,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    throw err;
+    console.error("Error adding paper:", err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json(
+      { error: "Failed to add paper", details: errorMessage },
+      { status: 500 }
+    );
   }
 }
