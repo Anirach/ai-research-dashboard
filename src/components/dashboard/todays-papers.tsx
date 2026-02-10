@@ -31,10 +31,19 @@ export function TodaysPapers() {
     try {
       const res = await fetch("/api/arxiv?maxResults=10");
       const data = await res.json();
+
+      if (!res.ok) {
+        console.error("arXiv API error:", data);
+        toast.error(data.details || "Failed to fetch latest papers");
+        setPapers([]);
+        return;
+      }
+
       setPapers(data.papers || []);
     } catch (error) {
       console.error("Failed to fetch papers:", error);
       toast.error("Failed to fetch latest papers");
+      setPapers([]);
     } finally {
       setLoading(false);
     }

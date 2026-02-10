@@ -67,38 +67,53 @@ export async function fetchArxivPapers(options: {
     sortOrder,
   });
 
-  const response = await fetch(`${ARXIV_API_URL}?${params}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
-  if (!response.ok) {
-    throw new Error(`arXiv API error: ${response.status}`);
+  try {
+    const response = await fetch(`${ARXIV_API_URL}?${params}`, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`arXiv API error: ${response.status}`);
+    }
+
+    const xml = await response.text();
+    const result = (await parseStringPromise(xml)) as ArxivFeed;
+
+    const entries = result.feed.entry || [];
+    const totalResults = result.feed["opensearch:totalResults"]
+      ? parseInt(result.feed["opensearch:totalResults"][0]._ || "0")
+      : 0;
+
+    const papers: ArxivPaper[] = entries.map((entry) => {
+      const arxivId = extractArxivId(entry.id[0]);
+      const pdfLink = entry.link.find((l) => l.$.title === "pdf");
+      const abstractLink = entry.link.find((l) => l.$.type === "text/html");
+
+      return {
+        arxivId,
+        title: cleanText(entry.title[0]),
+        authors: entry.author.map((a) => a.name[0]),
+        abstract: cleanText(entry.summary[0]),
+        url: abstractLink?.$.href || `https://arxiv.org/abs/${arxivId}`,
+        pdfUrl: pdfLink?.$.href || `https://arxiv.org/pdf/${arxivId}.pdf`,
+        publishedAt: new Date(entry.published[0]),
+        categories: entry.category.map((c) => c.$.term),
+      };
+    });
+
+    return { papers, totalResults };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('arXiv API request timed out after 8 seconds');
+    }
+    throw error;
   }
-
-  const xml = await response.text();
-  const result = (await parseStringPromise(xml)) as ArxivFeed;
-
-  const entries = result.feed.entry || [];
-  const totalResults = result.feed["opensearch:totalResults"]
-    ? parseInt(result.feed["opensearch:totalResults"][0]._ || "0")
-    : 0;
-
-  const papers: ArxivPaper[] = entries.map((entry) => {
-    const arxivId = extractArxivId(entry.id[0]);
-    const pdfLink = entry.link.find((l) => l.$.title === "pdf");
-    const abstractLink = entry.link.find((l) => l.$.type === "text/html");
-
-    return {
-      arxivId,
-      title: cleanText(entry.title[0]),
-      authors: entry.author.map((a) => a.name[0]),
-      abstract: cleanText(entry.summary[0]),
-      url: abstractLink?.$.href || `https://arxiv.org/abs/${arxivId}`,
-      pdfUrl: pdfLink?.$.href || `https://arxiv.org/pdf/${arxivId}.pdf`,
-      publishedAt: new Date(entry.published[0]),
-      categories: entry.category.map((c) => c.$.term),
-    };
-  });
-
-  return { papers, totalResults };
 }
 
 export async function fetchTodaysPapers(
@@ -136,33 +151,48 @@ export async function searchArxivPapers(
     sortOrder: "descending",
   });
 
-  const response = await fetch(`${ARXIV_API_URL}?${params}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
-  if (!response.ok) {
-    throw new Error(`arXiv API error: ${response.status}`);
+  try {
+    const response = await fetch(`${ARXIV_API_URL}?${params}`, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`arXiv API error: ${response.status}`);
+    }
+
+    const xml = await response.text();
+    const result = (await parseStringPromise(xml)) as ArxivFeed;
+
+    const entries = result.feed.entry || [];
+
+    return entries.map((entry) => {
+      const arxivId = extractArxivId(entry.id[0]);
+      const pdfLink = entry.link.find((l) => l.$.title === "pdf");
+      const abstractLink = entry.link.find((l) => l.$.type === "text/html");
+
+      return {
+        arxivId,
+        title: cleanText(entry.title[0]),
+        authors: entry.author.map((a) => a.name[0]),
+        abstract: cleanText(entry.summary[0]),
+        url: abstractLink?.$.href || `https://arxiv.org/abs/${arxivId}`,
+        pdfUrl: pdfLink?.$.href || `https://arxiv.org/pdf/${arxivId}.pdf`,
+        publishedAt: new Date(entry.published[0]),
+        categories: entry.category.map((c) => c.$.term),
+      };
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('arXiv API request timed out after 8 seconds');
+    }
+    throw error;
   }
-
-  const xml = await response.text();
-  const result = (await parseStringPromise(xml)) as ArxivFeed;
-
-  const entries = result.feed.entry || [];
-
-  return entries.map((entry) => {
-    const arxivId = extractArxivId(entry.id[0]);
-    const pdfLink = entry.link.find((l) => l.$.title === "pdf");
-    const abstractLink = entry.link.find((l) => l.$.type === "text/html");
-
-    return {
-      arxivId,
-      title: cleanText(entry.title[0]),
-      authors: entry.author.map((a) => a.name[0]),
-      abstract: cleanText(entry.summary[0]),
-      url: abstractLink?.$.href || `https://arxiv.org/abs/${arxivId}`,
-      pdfUrl: pdfLink?.$.href || `https://arxiv.org/pdf/${arxivId}.pdf`,
-      publishedAt: new Date(entry.published[0]),
-      categories: entry.category.map((c) => c.$.term),
-    };
-  });
 }
 
 export async function fetchPaperByArxivId(arxivId: string): Promise<ArxivPaper | null> {
@@ -172,34 +202,49 @@ export async function fetchPaperByArxivId(arxivId: string): Promise<ArxivPaper |
     id_list: cleanId,
   });
 
-  const response = await fetch(`${ARXIV_API_URL}?${params}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
-  if (!response.ok) {
-    throw new Error(`arXiv API error: ${response.status}`);
+  try {
+    const response = await fetch(`${ARXIV_API_URL}?${params}`, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`arXiv API error: ${response.status}`);
+    }
+
+    const xml = await response.text();
+    const result = (await parseStringPromise(xml)) as ArxivFeed;
+
+    const entries = result.feed.entry || [];
+    if (entries.length === 0) {
+      return null;
+    }
+
+    const entry = entries[0];
+    const pdfLink = entry.link.find((l) => l.$.title === "pdf");
+    const abstractLink = entry.link.find((l) => l.$.type === "text/html");
+
+    return {
+      arxivId: cleanId,
+      title: cleanText(entry.title[0]),
+      authors: entry.author.map((a) => a.name[0]),
+      abstract: cleanText(entry.summary[0]),
+      url: abstractLink?.$.href || `https://arxiv.org/abs/${cleanId}`,
+      pdfUrl: pdfLink?.$.href || `https://arxiv.org/pdf/${cleanId}.pdf`,
+      publishedAt: new Date(entry.published[0]),
+      categories: entry.category.map((c) => c.$.term),
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('arXiv API request timed out after 8 seconds');
+    }
+    throw error;
   }
-
-  const xml = await response.text();
-  const result = (await parseStringPromise(xml)) as ArxivFeed;
-
-  const entries = result.feed.entry || [];
-  if (entries.length === 0) {
-    return null;
-  }
-
-  const entry = entries[0];
-  const pdfLink = entry.link.find((l) => l.$.title === "pdf");
-  const abstractLink = entry.link.find((l) => l.$.type === "text/html");
-
-  return {
-    arxivId: cleanId,
-    title: cleanText(entry.title[0]),
-    authors: entry.author.map((a) => a.name[0]),
-    abstract: cleanText(entry.summary[0]),
-    url: abstractLink?.$.href || `https://arxiv.org/abs/${cleanId}`,
-    pdfUrl: pdfLink?.$.href || `https://arxiv.org/pdf/${cleanId}.pdf`,
-    publishedAt: new Date(entry.published[0]),
-    categories: entry.category.map((c) => c.$.term),
-  };
 }
 
 function extractArxivId(url: string): string {

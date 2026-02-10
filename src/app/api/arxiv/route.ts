@@ -38,9 +38,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error("arXiv API error:", err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error("arXiv API error:", errorMessage, err);
     return NextResponse.json(
-      { error: "Failed to fetch from arXiv" },
+      {
+        error: "Failed to fetch from arXiv",
+        details: errorMessage,
+        papers: []
+      },
       { status: 500 }
     );
   }
