@@ -1,8 +1,15 @@
-import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+
+// Demo user for screenshots
+const demoUser = {
+  id: "demo",
+  name: "Demo User",
+  email: "demo@example.com",
+  image: null,
+};
 
 export default async function DashboardLayout({
   children,
@@ -10,15 +17,12 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    redirect("/auth/signin");
-  }
+  const user = session?.user || demoUser;
 
   return (
     <div className="flex min-h-screen">
       <div className="hidden md:block">
-        <Sidebar user={session.user} />
+        <Sidebar user={user} />
       </div>
       <MobileNav />
       <main className="flex-1 overflow-auto pb-16 md:pb-0">
