@@ -169,11 +169,11 @@ export default function GraphPage() {
         </div>
       </div>
 
-      <div className={`grid gap-6 ${selectedNode ? "lg:grid-cols-4" : ""}`}>
-        <div className={selectedNode ? "lg:col-span-3" : ""}>
+      <div className="grid gap-6 lg:grid-cols-12">
+        <div className={selectedNode ? "lg:col-span-9" : "lg:col-span-12"}>
           <Card className="overflow-hidden">
             <CardContent className="p-0">
-              <div className={fullscreen ? "h-[calc(100vh-200px)]" : "h-[600px]"}>
+              <div className={fullscreen ? "h-[calc(100vh-160px)]" : "h-[calc(100vh-280px)] min-h-[500px]"}>
                 <CitationNetwork
                   nodes={nodes}
                   links={links}
@@ -195,7 +195,7 @@ export default function GraphPage() {
         </div>
 
         {selectedNode && (
-          <Card className="lg:col-span-1 h-fit">
+          <Card className="lg:col-span-3 h-fit sticky top-6">
             <CardHeader>
               <CardTitle className="text-base">Selected Paper</CardTitle>
               <CardDescription>Click a node to see details</CardDescription>
