@@ -20,12 +20,12 @@ export default async function DashboardLayout({
   const user = session?.user || demoUser;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <div className="hidden md:block">
         <Sidebar user={user} />
       </div>
       <MobileNav />
-      <main className="flex-1 overflow-auto pb-16 md:pb-0">
+      <main className="flex-1 overflow-auto pb-20 md:pb-0 scrollbar-thin">
         <div className="container mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
           {children}
         </div>
